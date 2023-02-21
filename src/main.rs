@@ -2,8 +2,8 @@ extern crate core;
 
 mod mmu;
 
-use crate::mmu::{Mmu, VirtAddr};
-use elf_parser::elf::phdr::{Elf64PHdr, PType};
+use crate::mmu::{Mmu, Perm, VirtAddr};
+use elf_parser::elf::phdr::{Elf64PHdr, PType, PF_EXEC, PF_READ, PF_WRITE};
 use elf_parser::parser::ElfParser;
 
 pub struct Emu {
@@ -20,9 +20,23 @@ impl Emu {
     }
 
     pub fn load_section(&mut self, section: &Elf64PHdr) {
+        let perms = (section.flags & (PF_EXEC | PF_WRITE | PF_READ)) as u8;
+
         self.memory
-            .write_from(&section.section, VirtAddr(section.vaddr.0 as usize))
+            .write_from(VirtAddr(section.vaddr.0 as usize), &section.section)
             .unwrap();
+        self.memory
+            .set_perms(
+                VirtAddr(section.vaddr.0 as usize),
+                section.section.len(),
+                Perm(perms),
+            )
+            .unwrap();
+        self.memory.vprintln(
+            section.vaddr.0 as usize,
+            (section.vaddr.0 + section.memsz) as usize,
+            true,
+        );
     }
 }
 

@@ -5,13 +5,13 @@ mod processor;
 
 use crate::mmu::{Mmu, Perm, VirtAddr};
 use elf_parser::elf::phdr::{Elf64PHdr, PType, PTypeData, PF_EXEC, PF_READ, PF_WRITE};
-use crate::processor::{Register, Registers};
+use crate::processor::{Register};
 use elf_parser::parser::ElfParser;
 
 pub struct Emu {
     pub memory: Mmu,
     pub entry_point: VirtAddr,
-    pub registers: [Register; 32],
+    pub registers: [u64; 32],
 }
 
 impl Emu {
@@ -19,15 +19,15 @@ impl Emu {
         Emu {
             memory: Mmu::new(mem_size),
             entry_point: VirtAddr(entry_point as usize),
-            registers: [Register(0u64); 32],
+            registers: [0u64; 32],
         }
     }
 
-    pub fn reg(&self, reg: Registers) -> Register {
+    pub fn reg(&self, reg: Register) -> u64 {
         self.registers[reg as usize]
     }
 
-    pub fn set_reg(&mut self, reg: Registers, val: Register) {
+    pub fn set_reg(&mut self, reg: Register, val: u64) {
         self.registers[reg as usize] = val;
     }
 

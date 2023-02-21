@@ -2,24 +2,37 @@ extern crate core;
 
 mod mmu;
 
-use crate::mmu::Mmu;
+use crate::mmu::{Mmu, VirtAddr};
+use elf_parser::elf::phdr::{Elf64PHdr, PType};
 use elf_parser::parser::ElfParser;
 
 pub struct Emu {
     pub memory: Mmu,
+    pub entry_point: VirtAddr,
 }
 
 impl Emu {
-    pub fn new(mem_size: usize) -> Self {
+    pub fn new(mem_size: usize, entry_point: u64) -> Self {
         Emu {
             memory: Mmu::new(mem_size),
+            entry_point: VirtAddr(entry_point as usize),
         }
+    }
+
+    pub fn load_section(&mut self, section: &Elf64PHdr) {
+        self.memory
+            .write_from(&section.section, VirtAddr(section.vaddr.0 as usize))
+            .unwrap();
     }
 }
 
 fn main() {
     let contents = std::fs::read("./out/rv64i-test").unwrap();
-    let _ = ElfParser::parse(contents);
+    let elf = ElfParser::parse(contents).unwrap();
+    let mut emu = Emu::new(2 * 1024 * 1024, elf.headers.entry.0);
 
-    let _ = Emu::new(2 * 1024);
+    elf.program_headers
+        .iter()
+        .filter(|s| s.p_type == PType::PtLoad)
+        .for_each(|ls| emu.load_section(ls));
 }

@@ -71,3 +71,40 @@ impl Mmu {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup() -> Mmu {
+        Mmu::new(2 * 1024)
+    }
+
+    #[test]
+    fn write_from_base_state() {
+        let mut mmu = setup();
+
+        mmu.write_from(b"hello", VirtAddr(0x0)).unwrap();
+        assert_eq!(mmu.memory[0..5], [b'h', b'e', b'l', b'l', b'o']);
+    }
+
+    #[test]
+    fn raw_perms_after_write() {
+        let mut mmu = setup();
+
+        assert!(mmu.permissions[0..5].iter().all(|b| b.0 == PERM_RAW | PERM_WRITE));
+        mmu.write_from(b"hello", VirtAddr(0x0)).unwrap();
+        assert!(mmu.permissions[0..5].iter().all(|b| b.0 == PERM_READ | PERM_WRITE));
+    }
+
+    #[test]
+    fn read_from_raw_memory() {
+        let mut mmu = setup();
+
+        let mut buff = [0u8; 5];
+        match mmu.read_into(&mut buff, VirtAddr(0x0)) {
+            Ok(_) => {assert!(false, "match should fail")}
+            Err(_) => {assert!(true)}
+        }
+    }
+}

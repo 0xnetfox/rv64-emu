@@ -11,7 +11,7 @@ const PERM_EXEC:  u8 = 8;
 pub struct VirtAddr(usize);
 
 #[derive(Debug, Copy, Clone)]
-pub struct Perm(u8);
+pub struct Perm(pub u8);
 
 #[derive(Debug)]
 pub struct Mmu {
@@ -28,8 +28,13 @@ impl Mmu {
         }
     }
 
-    pub fn read_into(&self, buf: &mut [u8], off: VirtAddr) -> Result<(), ()> {
-        // TODO implement perms
+    pub fn read_into(&mut self, buf: &mut [u8], off: VirtAddr) -> Result<(), ()> {
+        if self.permissions[off.0..off.0 + buf.len()]
+            .iter()
+            .all(|b| (b.0 & PERM_READ) == 0) {
+            return Err(())
+        }
+
         buf.copy_from_slice(&self.memory[off.0..off.0 + buf.len()]);
         Ok(())
     }

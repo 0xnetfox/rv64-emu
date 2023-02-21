@@ -1,14 +1,17 @@
 extern crate core;
 
 mod mmu;
+mod processor;
 
 use crate::mmu::{Mmu, Perm, VirtAddr};
 use elf_parser::elf::phdr::{Elf64PHdr, PType, PTypeData, PF_EXEC, PF_READ, PF_WRITE};
+use crate::processor::{Register, Registers};
 use elf_parser::parser::ElfParser;
 
 pub struct Emu {
     pub memory: Mmu,
     pub entry_point: VirtAddr,
+    pub registers: [Register; 32],
 }
 
 impl Emu {
@@ -16,7 +19,16 @@ impl Emu {
         Emu {
             memory: Mmu::new(mem_size),
             entry_point: VirtAddr(entry_point as usize),
+            registers: [Register(0u64); 32],
         }
+    }
+
+    pub fn reg(&self, reg: Registers) -> Register {
+        self.registers[reg as usize]
+    }
+
+    pub fn set_reg(&mut self, reg: Registers, val: Register) {
+        self.registers[reg as usize] = val;
     }
 
     pub fn load_section(&mut self, section: &Elf64PHdr) {

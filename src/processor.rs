@@ -1,3 +1,55 @@
+/// Represents the function signature that an instruction operation's function
+/// must adhere to.
+type InstructionOperation = fn(word: u32) -> ();
+
+/// Represents one of the instructions of the RISC-V machine.
+pub struct Instruction {
+    /// A mask that can be AND'ed to the instruction word in order to retrieve the fields
+    /// that matter for decoding.
+    pub mask: u32,
+
+    /// The result that AND'ing the word and the mask should produce for a positive match
+    /// for this instruction.
+    pub result: u32,
+
+    /// The function that will emulate this instruction's operation.
+    pub operation: InstructionOperation,
+
+    /// Name of the instruction.
+    pub name: &'static str,
+}
+
+/// Masks R-type instruction's op, funct3 and funct7 fields.
+const MASK_OP_FN3_FN7: u32 = 0xfe00707f;
+
+const INSTRUCTIONS_SZ: usize = 1;
+
+/// Static list of RISC-V implemented instructions
+static INSTRUCTIONS: [Instruction; INSTRUCTIONS_SZ] = [
+    Instruction {
+	mask:      MASK_OP_FN3_FN7,
+	result:    0x33,
+	operation: op_add,
+	name:      "ADD"
+    }
+];
+
+pub fn op_add(word: u32) -> () {
+    unimplemented!();
+}
+
+pub fn decode_instruction(word: u32) -> Option<&'static Instruction> {
+    for i in 0..INSTRUCTIONS_SZ {
+	let ix = &INSTRUCTIONS[i];
+
+	if (word & ix.mask) == ix.result {
+	    return Some(ix);
+	}
+    }
+
+    return None;
+}
+
 #[repr(usize)]
 #[derive(Debug, Copy, Clone)]
 pub enum Register {
@@ -191,4 +243,9 @@ impl From<u32> for InstrJ {
             rd: Register::from((instr >> 7) & 0b0001_1111)
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }

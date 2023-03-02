@@ -31,6 +31,13 @@ impl Emu {
         self.registers[reg as usize] = val;
     }
 
+    pub fn load_sections(&mut self, sections: Vec<Elf64PHdr>) {
+	sections
+	    .iter()
+	    .filter(|s| s.p_type == PType::PtLoad)
+	    .for_each(|ls| self.load_section(ls));
+    }
+
     pub fn load_section(&mut self, section: &Elf64PHdr) {
         let perms = (section.flags & (PF_EXEC | PF_WRITE | PF_READ)) as u8;
 
@@ -59,8 +66,5 @@ fn main() {
     let elf = ElfParser::parse(contents).unwrap();
     let mut emu = Emu::new(2 * 1024 * 1024, elf.headers.entry.0);
 
-    elf.program_headers
-        .iter()
-        .filter(|s| s.p_type == PType::PtLoad)
-        .for_each(|ls| emu.load_section(ls));
+    emu.load_sections(elf.program_headers);
 }

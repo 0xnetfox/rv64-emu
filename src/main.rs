@@ -5,30 +5,28 @@ mod processor;
 
 use crate::mmu::{Mmu, Perm, VirtAddr};
 use elf_parser::elf::phdr::{Elf64PHdr, PType, PTypeData, PF_EXEC, PF_READ, PF_WRITE};
-use crate::processor::{Register};
+use crate::processor::{Processor, Register};
 use elf_parser::parser::ElfParser;
 
 pub struct Emu {
     pub memory: Mmu,
-    pub entry_point: VirtAddr,
-    pub registers: [u64; 32],
+    pub processor: Processor
 }
 
 impl Emu {
-    pub fn new(mem_size: usize, entry_point: u64) -> Self {
+    pub fn new(mem_size: usize, entrypoint: usize) -> Self {
         Emu {
             memory: Mmu::new(mem_size),
-            entry_point: VirtAddr(entry_point as usize),
-            registers: [0u64; 32],
+	    processor: Processor::new(entrypoint),
         }
     }
 
     pub fn reg(&self, reg: Register) -> u64 {
-        self.registers[reg as usize]
+        self.processor.registers[reg as usize]
     }
 
     pub fn set_reg(&mut self, reg: Register, val: u64) {
-        self.registers[reg as usize] = val;
+        self.processor.registers[reg as usize] = val;
     }
 
     pub fn load_sections(&mut self, sections: Vec<Elf64PHdr>) {
@@ -64,7 +62,7 @@ impl Emu {
 fn main() {
     let contents = std::fs::read("./out/rv64i-test").unwrap();
     let elf = ElfParser::parse(contents).unwrap();
-    let mut emu = Emu::new(2 * 1024 * 1024, elf.headers.entry.0);
+    let mut emu = Emu::new(2 * 1024 * 1024, elf.headers.entry.0 as usize);
 
     emu.load_sections(elf.program_headers);
 }

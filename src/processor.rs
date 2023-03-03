@@ -1,3 +1,5 @@
+use crate::mmu::{VirtAddr};
+
 /// Represents the function signature that an instruction operation's function
 /// must adhere to.
 type InstructionOperation = fn(word: u32) -> ();
@@ -22,32 +24,47 @@ pub struct Instruction {
 /// Masks R-type instruction's op, funct3 and funct7 fields.
 const MASK_OP_FN3_FN7: u32 = 0xfe00707f;
 
-const INSTRUCTIONS_SZ: usize = 1;
-
-/// Static list of RISC-V implemented instructions
-static INSTRUCTIONS: [Instruction; INSTRUCTIONS_SZ] = [
-    Instruction {
-	mask:      MASK_OP_FN3_FN7,
-	result:    0x33,
-	operation: op_add,
-	name:      "ADD"
-    }
-];
-
-pub fn op_add(word: u32) -> () {
-    unimplemented!();
+pub struct Processor {
+    pub entrypoint: VirtAddr,
+    pub registers:  [u64; 32],
 }
 
-pub fn decode_instruction(word: u32) -> Option<&'static Instruction> {
-    for i in 0..INSTRUCTIONS_SZ {
-	let ix = &INSTRUCTIONS[i];
+impl Processor {
+    /// Size of the static `INSTRUCTIONS` array.
+    const INSTRUCTIONS_SZ: usize = 1;
 
-	if (word & ix.mask) == ix.result {
-	    return Some(ix);
+    /// Static list of RISC-V implemented instructions
+    const INSTRUCTIONS: [Instruction; Self::INSTRUCTIONS_SZ] = [
+	Instruction {
+	    mask:      MASK_OP_FN3_FN7,
+	    result:    0x33,
+	    operation: op_add,
+	    name:      "ADD"
+	}
+    ];
+
+    pub fn new(entrypoint: usize) -> Self {
+	Processor {
+            entrypoint: VirtAddr(entrypoint),
+            registers:   [0u64; 32],
 	}
     }
 
-    return None;
+    pub fn decode_instruction(word: u32) -> Option<&'static Instruction> {
+	for i in 0..Self::INSTRUCTIONS_SZ {
+	    let ix = &Self::INSTRUCTIONS[i];
+
+	    if (word & ix.mask) == ix.result {
+		return Some(ix);
+	    }
+	}
+
+	return None;
+    }
+}
+
+pub fn op_add(_word: u32) -> () {
+    unimplemented!();
 }
 
 #[repr(usize)]

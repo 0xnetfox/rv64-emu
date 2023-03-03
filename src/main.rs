@@ -1,68 +1,17 @@
 extern crate core;
 
 mod mmu;
+mod emulator;
 mod processor;
 
-use crate::mmu::{Mmu, Perm, VirtAddr};
-use elf_parser::elf::phdr::{Elf64PHdr, PType, PTypeData, PF_EXEC, PF_READ, PF_WRITE};
-use crate::processor::{Processor, Register};
 use elf_parser::parser::ElfParser;
-
-pub struct Emu {
-    pub memory: Mmu,
-    pub processor: Processor
-}
-
-impl Emu {
-    pub fn new(mem_size: usize, entrypoint: usize) -> Self {
-        Emu {
-            memory: Mmu::new(mem_size),
-	    processor: Processor::new(entrypoint),
-        }
-    }
-
-    pub fn reg(&self, reg: Register) -> u64 {
-        self.processor.registers[reg as usize]
-    }
-
-    pub fn set_reg(&mut self, reg: Register, val: u64) {
-        self.processor.registers[reg as usize] = val;
-    }
-
-    pub fn load_sections(&mut self, sections: Vec<Elf64PHdr>) {
-	sections
-	    .iter()
-	    .filter(|s| s.p_type == PType::PtLoad)
-	    .for_each(|ls| self.load_section(ls));
-    }
-
-    pub fn load_section(&mut self, section: &Elf64PHdr) {
-        let perms = (section.flags & (PF_EXEC | PF_WRITE | PF_READ)) as u8;
-
-        match &section.section {
-            PTypeData::PtLoadData(bytes) => {
-                self.memory
-                    .write_from(VirtAddr(section.vaddr.0 as usize), bytes)
-                    .unwrap();
-                self.memory
-                    .set_perms(VirtAddr(section.vaddr.0 as usize), bytes.len(), Perm(perms))
-                    .unwrap();
-            }
-            _ => unreachable!(),
-        }
-
-        self.memory.vprintln(
-            section.vaddr.0 as usize,
-            (section.vaddr.0 + section.memsz) as usize,
-            true,
-        );
-    }
-}
+use crate::emulator::Emu;
 
 fn main() {
     let contents = std::fs::read("./out/rv64i-test").unwrap();
     let elf = ElfParser::parse(contents).unwrap();
-    let mut emu = Emu::new(2 * 1024 * 1024, elf.headers.entry.0 as usize);
+    let mut emu = Emu::new(2 * 1024 * 1024, elf.headers.entry.0);
 
     emu.load_sections(elf.program_headers);
+    emu.run().unwrap();
 }

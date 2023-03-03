@@ -1,5 +1,3 @@
-use crate::mmu::{VirtAddr};
-
 /// Represents the function signature that an instruction operation's function
 /// must adhere to.
 type InstructionOperation = fn(word: u32) -> ();
@@ -21,17 +19,19 @@ pub struct Instruction {
     pub name: &'static str,
 }
 
-/// Masks R-type instruction's op, funct3 and funct7 fields.
+/// Masks an instruction's opcode field.
+const MASK_OP: u32         = 0x7f;
+
+/// Masks R-type instruction's opcode, funct3 and funct7 fields.
 const MASK_OP_FN3_FN7: u32 = 0xfe00707f;
 
 pub struct Processor {
-    pub entrypoint: VirtAddr,
-    pub registers:  [u64; 32],
+    pub registers:  [u64; 33],
 }
 
 impl Processor {
     /// Size of the static `INSTRUCTIONS` array.
-    const INSTRUCTIONS_SZ: usize = 1;
+    const INSTRUCTIONS_SZ: usize = 2;
 
     /// Static list of RISC-V implemented instructions
     const INSTRUCTIONS: [Instruction; Self::INSTRUCTIONS_SZ] = [
@@ -40,14 +40,33 @@ impl Processor {
 	    result:    0x33,
 	    operation: op_add,
 	    name:      "ADD"
-	}
+	},
+	Instruction {
+	    mask:      MASK_OP,
+	    result:    0x6f,
+	    operation: op_jal,
+	    name:      "JAL"
+	},
     ];
 
-    pub fn new(entrypoint: usize) -> Self {
-	Processor {
-            entrypoint: VirtAddr(entrypoint),
-            registers:   [0u64; 32],
-	}
+    pub fn new(entrypoint: u64) -> Self {
+	let mut processor = Processor {
+            registers: [0u64; 33],
+	};
+	processor.set_reg(Register::Pc, entrypoint);
+	processor
+    }
+
+    pub fn reg(&self, reg: Register) -> u64 {
+        self.registers[reg as usize]
+    }
+
+    pub fn set_reg(&mut self, reg: Register, val: u64) {
+        self.registers[reg as usize] = val;
+    }
+
+    pub fn inc_pc(&mut self) {
+	self.set_reg(Register::Pc, self.reg(Register::Pc) + 4);
     }
 
     pub fn decode_instruction(word: u32) -> Option<&'static Instruction> {
@@ -65,6 +84,12 @@ impl Processor {
 
 pub fn op_add(_word: u32) -> () {
     unimplemented!();
+}
+
+pub fn op_jal(word: u32) -> () {
+    let instr = InstrU::from(word);
+    println!("{:?}", instr);
+    unimplemented!("JAL not implemented");
 }
 
 #[repr(usize)]
@@ -102,11 +127,12 @@ pub enum Register {
     T4,
     T5,
     T6,
+    Pc
 }
 
 impl From<u32> for Register {
     fn from(v: u32) -> Self {
-        assert!(v <= 32);
+        assert!(v <= 33);
 
         unsafe {
             core::ptr::read_unaligned(&(v as usize) as *const usize as *const Register)
@@ -222,6 +248,7 @@ impl From<u32> for InstrB {
 ///  -------------------------------------------------------------------------------
 /// |                         imm3112                         |   rd   |   opcode   |
 ///  -------------------------------------------------------------------------------
+#[derive(Debug)]
 pub struct InstrU {
     pub imm:        i32,
     pub rd:         Register,

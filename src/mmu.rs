@@ -5,6 +5,7 @@ pub const PERM_READ: u8 = 0x4;
 pub const PERM_RAW: u8 = 0x8;
 
 /// Represents a address on this `Mmu` implementation
+#[derive(Debug, Copy, Clone)]
 pub struct VirtAddr(pub usize);
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -23,6 +24,12 @@ impl Mmu {
             memory: vec![0u8; size],
             permissions: vec![Perm(PERM_WRITE | PERM_RAW); size],
         }
+    }
+
+    pub fn read<const SIZE: usize>(&mut self, offset: VirtAddr) -> Result<[u8; SIZE], ()> {
+	let mut buffer = [0u8; SIZE];
+	self.read_into(&mut buffer, offset)?;
+	Ok(buffer)
     }
 
     pub fn read_into(&mut self, buf: &mut [u8], off: VirtAddr) -> Result<(), ()> {

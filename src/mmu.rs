@@ -26,13 +26,13 @@ impl Mmu {
         }
     }
 
-    pub fn read<const SIZE: usize>(&mut self, offset: VirtAddr) -> Result<[u8; SIZE], ()> {
+    pub fn read<const SIZE: usize>(&self, offset: VirtAddr) -> Result<[u8; SIZE], ()> {
 	let mut buffer = [0u8; SIZE];
 	self.read_into(&mut buffer, offset)?;
 	Ok(buffer)
     }
 
-    pub fn read_into(&mut self, buf: &mut [u8], off: VirtAddr) -> Result<(), ()> {
+    pub fn read_into(&self, buf: &mut [u8], off: VirtAddr) -> Result<(), ()> {
         let w_len = off.0 + buf.len();
 
         if self.permissions[off.0..w_len]

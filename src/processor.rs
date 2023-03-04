@@ -1,6 +1,6 @@
 /// Represents the function signature that an instruction operation's function
 /// must adhere to.
-type InstructionOperation = fn(word: u32) -> ();
+type InstructionOperation = fn(p: &mut Processor, word: u32, address: u64) -> u64;
 
 /// Represents one of the instructions of the RISC-V machine.
 pub struct Instruction {
@@ -19,6 +19,11 @@ pub struct Instruction {
     pub name: &'static str,
 }
 
+/// Size in bytes of RISC-V instructions
+/// This is a lie, as RISC-V allows for variable-length instructions from
+/// 16 bytes to 64 bytes... but mostly only 32 bytes is used so :3
+const INSTRUCTION_SZ: u64  = 4;
+
 /// Masks an instruction's opcode field.
 const MASK_OP: u32         = 0x7f;
 
@@ -31,10 +36,10 @@ pub struct Processor {
 
 impl Processor {
     /// Size of the static `INSTRUCTIONS` array.
-    const INSTRUCTIONS_SZ: usize = 2;
+    const NUM_OF_INSTRUCTIONS: usize = 2;
 
     /// Static list of RISC-V implemented instructions
-    const INSTRUCTIONS: [Instruction; Self::INSTRUCTIONS_SZ] = [
+    const INSTRUCTIONS: [Instruction; Self::NUM_OF_INSTRUCTIONS] = [
 	Instruction {
 	    mask:      MASK_OP_FN3_FN7,
 	    result:    0x33,
@@ -66,11 +71,11 @@ impl Processor {
     }
 
     pub fn inc_pc(&mut self) {
-	self.set_reg(Register::Pc, self.reg(Register::Pc) + 4);
+	self.set_reg(Register::Pc, self.reg(Register::Pc) + INSTRUCTION_SZ);
     }
 
-    pub fn decode_instruction(word: u32) -> Option<&'static Instruction> {
-	for i in 0..Self::INSTRUCTIONS_SZ {
+    pub fn decode(word: u32) -> Option<&'static Instruction> {
+	for i in 0..Self::NUM_OF_INSTRUCTIONS {
 	    let ix = &Self::INSTRUCTIONS[i];
 
 	    if (word & ix.mask) == ix.result {
@@ -82,14 +87,21 @@ impl Processor {
     }
 }
 
-pub fn op_add(_word: u32) -> () {
+pub fn op_add(_p: &mut Processor, _word: u32, _address: u64) -> u64 {
     unimplemented!();
 }
 
-pub fn op_jal(word: u32) -> () {
-    let instr = InstrU::from(word);
-    println!("{:?}", instr);
-    unimplemented!("JAL not implemented");
+/// JAL
+/// Stores the address following the jump (pc + 4) into rd, then adds the
+/// sign-extended immediate to pc.
+pub fn op_jal(p: &mut Processor, word: u32, address: u64) -> u64 {
+    let instr = InstrJ::from(word);
+    let dest  = address.wrapping_add(instr.imm as i32 as i64 as u64);
+
+    p.set_reg(instr.rd, address + INSTRUCTION_SZ);
+    p.set_reg(Register::Pc, dest);
+
+    dest
 }
 
 #[repr(usize)]
@@ -267,6 +279,7 @@ impl From<u32> for InstrU {
 ///  -------------------------------------------------------------------------------
 /// |   imm20   |   imm101   |  imm11  |        imm1912       |   rd   |   opcode   |
 ///  -------------------------------------------------------------------------------
+#[derive(Debug)]
 pub struct InstrJ {
     pub imm:        i32,
     pub rd:         Register,

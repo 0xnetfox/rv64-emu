@@ -44,25 +44,31 @@ impl Emu {
         );
     }
 
-    pub fn run(&mut self) -> Result<(), ()> {
-	'next_instr: loop {
-	    let pc = VirtAddr(self.processor.reg(Register::Pc) as usize);
-	    let instr_w: u32 = u32::from_le_bytes(self.memory.read::<4>(pc)?);
+    pub fn fetch(&self, addr: VirtAddr) -> u32 {
+	u32::from_le_bytes(self.memory.read::<4>(addr).unwrap())
+    }
 
-	    let Some(instr) = Processor::decode_instruction(instr_w) else {
-		unimplemented!("instruction for word {:#04b} not implemented", instr_w);
-	    };
+    pub fn tick(&mut self) -> Result<(), ()> {
+	let tick_pc = self.processor.reg(Register::Pc);
+	let instr_w = self.fetch(VirtAddr(tick_pc as usize));
 
-	    (instr.operation)(instr_w);
-
-	    // TODO this will cause problems when jumping around, SO MAKE SURE TO CHANGE IT
-	    self.processor.inc_pc();
-
-	    println!("{:#04x}", pc.0);
-	    println!("{:#04x}", instr_w);
+	let Some(instr) = Processor::decode(instr_w) else {
+	    unimplemented!("instruction for word {:#04b} not implemented", instr_w);
 	};
 
+	let next_pc = (instr.operation)(&mut self.processor, instr_w, tick_pc);
+
+	if tick_pc == next_pc {
+	    self.processor.inc_pc();
+	}
+
 	Ok(())
+    }
+
+    pub fn run(&mut self) -> Result<(), ()> {
+	loop {
+	    self.tick()?;
+	}
     }
 }
 
